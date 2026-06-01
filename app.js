@@ -374,6 +374,7 @@ function renderRow(listing) {
     listing.direction,
     listing.rooms ? `방 ${listing.rooms}` : "",
     listing.maintenance ? `관리비 ${listing.maintenance}` : "",
+    formatHouseholdCount(listing.households),
   ].filter(Boolean);
   return `
     <tr data-row-id="${listing.id}" class="${listing.id === selectedId ? "is-selected" : ""}">
@@ -741,6 +742,11 @@ function formatVisitSchedule(listing) {
   if (!listing.visitDate) return listing.visitTime;
   if (!listing.visitTime) return listing.visitDate;
   return `${listing.visitDate} ${listing.visitTime}`;
+}
+
+function formatHouseholdCount(value) {
+  const match = String(value || "").match(/\d[\d,]*\s*세대/);
+  return match ? match[0].replace(/\s+/g, "") : "";
 }
 
 function buildNameFromUrl(url) {
