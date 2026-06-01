@@ -59,7 +59,7 @@ const naverListingImports = {
     name: "벽산늘푸른 102동",
     articleNumber: "2624633836",
     price: 86500,
-    recentDeal: 84000,
+    recentDeal: 80800,
     supplyArea: 79.72,
     exclusiveArea: 59.97,
     floor: "고/15층",
@@ -76,7 +76,7 @@ const naverListingImports = {
     name: "벽산늘푸른 102동",
     articleNumber: "2628775648",
     price: 85000,
-    recentDeal: 84000,
+    recentDeal: 80800,
     supplyArea: 79.72,
     exclusiveArea: 59.97,
     floor: "3/15층",
@@ -90,7 +90,7 @@ const naverListingImports = {
     moveInDate: "즉시입주 협의 가능",
   },
   "https://naver.me/xHEE9Umf": {
-    name: "벽산늘푸른 102동",
+    name: "등촌월드메르디앙 101동",
     articleNumber: "2629124575",
     price: 100000,
     recentDeal: 83300,
@@ -103,11 +103,11 @@ const naverListingImports = {
     households: "145세대 (해당 면적 55세대)",
     parking: "146대 (세대당 1대)",
     realtorPhone: "02-2659-0519",
-    description: "즉시입주 협의 가능.",
+    description: "최근 샷시 포함 특올수리, 확장형. CJ부지 개발호재, 지하주차장 엘리베이터 연결 편리.",
     moveInDate: "즉시입주 협의 가능",
   },
   "https://naver.me/54KKdFOQ": {
-    name: "등촌월드메르디앙 101동",
+    name: "등촌현대2차 201동",
     articleNumber: "2626023501",
     price: 82000,
     recentDeal: 77500,
@@ -119,8 +119,8 @@ const naverListingImports = {
     maintenance: "20만원",
     households: "89세대 (해당 면적 31세대)",
     parking: "79대 (세대당 0.88대)",
-    realtorPhone: "02-3662-9662 / 02-3664-4886",
-    description: "소유주 확인 매물. 2027년 6월 하순 입주 협의 가능.",
+    realtorPhone: "02-3662-9662",
+    description: "소유주 확인 매물. 세안고 매매. 샤시교체, 내부 부분수리. 집 보실 분은 미리 연락 필요.",
     moveInDate: "2027년 06월 하순 협의 가능",
   },
   "https://naver.me/IDkkw0q5": {
@@ -232,8 +232,30 @@ function getImportedNaverListing(url) {
 
 function mergeImportedListing(listing, imported) {
   const next = { ...listing };
+  const authoritativeFields = [
+    "name",
+    "articleNumber",
+    "price",
+    "recentDeal",
+    "supplyArea",
+    "exclusiveArea",
+    "floor",
+    "direction",
+    "rooms",
+    "maintenance",
+    "households",
+    "parking",
+    "realtorPhone",
+    "description",
+    "moveInDate",
+  ];
+  const isKnownNaverListing = Boolean(
+    listing.naverUrl && naverListingImports[normalizeNaverUrl(listing.naverUrl)] === imported,
+  );
   Object.entries(imported).forEach(([key, value]) => {
-    if (
+    if (isKnownNaverListing && authoritativeFields.includes(key)) {
+      next[key] = value;
+    } else if (
       next[key] === "" ||
       next[key] === null ||
       next[key] === undefined ||
