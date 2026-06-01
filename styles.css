@@ -1,0 +1,877 @@
+:root {
+  color-scheme: light;
+  --bg: #f2fbf8;
+  --panel: #ffffff;
+  --panel-strong: #e5fff7;
+  --text: #101820;
+  --muted: #65746f;
+  --line: #d7e8e2;
+  --accent: #00c896;
+  --accent-dark: #008f72;
+  --accent-soft: #dffbf3;
+  --warning: #b66a00;
+  --danger: #c43d45;
+  --shadow: 0 18px 45px rgba(0, 143, 114, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, #e8fff8 0, #f8fbfa 260px),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent-dark);
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-width: 1180px;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.topbar h1 {
+  margin: 0;
+  color: #06362f;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.topbar p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.controls,
+.table-panel,
+.detail-panel {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 160px 140px 180px;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  padding: 9px 10px;
+  outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.16);
+}
+
+textarea {
+  resize: vertical;
+}
+
+.checkbox-label {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.checkbox-label input {
+  width: 16px;
+  height: 16px;
+}
+
+.main-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 18px;
+  align-items: start;
+}
+
+.table-panel,
+.detail-panel {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--panel-strong), #f7fffc);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 1500px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f3fffb;
+  color: #34504a;
+  font-size: 12px;
+}
+
+tbody tr {
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+tbody tr:hover,
+tbody tr.is-selected {
+  background: #ecfff8;
+}
+
+.name-cell {
+  min-width: 160px;
+  font-weight: 800;
+}
+
+.name-cell strong {
+  display: block;
+}
+
+.mobile-meta {
+  display: none;
+}
+
+.description-cell {
+  max-width: 300px;
+  color: #404853;
+}
+
+.external-link,
+.phone-link {
+  color: var(--accent-dark);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.external-link:focus-visible,
+.phone-link:focus-visible {
+  outline: 3px solid rgba(0, 200, 150, 0.18);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-width: 70px;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #e9f4f0;
+  color: #2e4d46;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-pill[data-status="방문완료"],
+.status-pill[data-status="계약검토"] {
+  background: var(--accent-soft);
+  color: #00745f;
+}
+
+.status-pill[data-status="협상중"] {
+  background: #fff0d3;
+  color: var(--warning);
+}
+
+.status-pill[data-status="제외"],
+.status-pill[data-status="보류"] {
+  background: #f2dddd;
+  color: var(--danger);
+}
+
+.detail-panel {
+  position: sticky;
+  top: 18px;
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+}
+
+.empty-detail {
+  padding: 28px;
+  color: var(--muted);
+}
+
+.empty-detail strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.detail-content {
+  padding: 16px;
+}
+
+.detail-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.close-detail-button {
+  display: none;
+}
+
+.detail-content h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.detail-content h3 {
+  margin: 20px 0 10px;
+  font-size: 14px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.summary-item {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px;
+  background: #f8fffc;
+}
+
+.summary-item span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.summary-item strong {
+  font-size: 13px;
+}
+
+.detail-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.checklist input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.rating-grid {
+  display: grid;
+  grid-template-columns: 1fr 86px;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.rating-grid label {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button,
+.icon-button {
+  border: 0;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #00d9a4, #00a884);
+  color: #fff;
+  padding: 10px 14px;
+  box-shadow: 0 10px 22px rgba(0, 168, 132, 0.22);
+}
+
+.primary-button:hover {
+  background: linear-gradient(135deg, #00c896, #008f72);
+}
+
+.secondary-button {
+  background: #e6f7f2;
+  color: #123d36;
+  padding: 10px 14px;
+}
+
+.ghost-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #20443d;
+  padding: 8px 11px;
+}
+
+.danger-button {
+  border-color: #f0c8cb;
+  color: var(--danger);
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  background: #e7faf4;
+  color: #123d36;
+  font-size: 22px;
+  line-height: 1;
+}
+
+#listingDialog {
+  width: min(760px, calc(100vw - 32px));
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+#listingDialog::backdrop {
+  background: rgba(12, 18, 28, 0.48);
+}
+
+.listing-form {
+  padding: 18px;
+}
+
+.dialog-header,
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.dialog-header {
+  margin-bottom: 14px;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.listing-form.is-link-only .manual-field {
+  display: none;
+}
+
+.listing-form.is-link-only .link-field {
+  grid-column: 1 / -1;
+}
+
+.dialog-actions {
+  grid-template-columns: auto 1fr auto auto;
+  margin-top: 18px;
+}
+
+#deleteListingButton {
+  color: var(--danger);
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .topbar,
+  .main-layout {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .detail-panel {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    background: #f2fbf8;
+  }
+
+  body.detail-open {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    padding: 10px;
+  }
+
+  .topbar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 8px 0;
+    background: rgba(242, 251, 248, 0.92);
+    backdrop-filter: blur(14px);
+  }
+
+  .topbar h1 {
+    font-size: 25px;
+    letter-spacing: 0;
+  }
+
+  .topbar p {
+    display: none;
+  }
+
+  #addListingButton {
+    min-width: 98px;
+    white-space: nowrap;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .ghost-button {
+    min-height: 42px;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: end;
+    overflow: visible;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(0, 143, 114, 0.08);
+  }
+
+  .controls label {
+    font-size: 12px;
+    min-width: 0;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 38px;
+    padding: 8px 9px;
+  }
+
+  .checkbox-label {
+    min-height: 42px;
+    align-self: end;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #f8fffc;
+  }
+
+  .main-layout {
+    gap: 0;
+  }
+
+  .table-panel {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .table-header {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(0, 143, 114, 0.08);
+  }
+
+  .table-header strong {
+    color: #0b3d35;
+    font-size: 14px;
+  }
+
+  .table-scroll {
+    overflow: visible;
+  }
+
+  table,
+  thead,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+  }
+
+  table {
+    min-width: 0;
+    border-collapse: separate;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody {
+    display: grid;
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+  }
+
+  tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 108px;
+    grid-template-areas:
+      "name price"
+      "area status"
+      "article score";
+    gap: 6px 10px;
+    min-height: 96px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(0, 143, 114, 0.09);
+    overflow: hidden;
+  }
+
+  tbody tr:hover,
+  tbody tr.is-selected {
+    background: #fff;
+    border-color: rgba(0, 200, 150, 0.62);
+  }
+
+  td {
+    display: block;
+    border-bottom: 0;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.3;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  td::before {
+    display: none;
+  }
+
+  .name-cell {
+    grid-area: name;
+    min-width: 0;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .name-cell strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-meta {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .price-cell {
+    grid-area: price;
+    justify-self: stretch;
+    color: #008a6e;
+    font-size: 18px;
+    font-weight: 900;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .area-cell {
+    grid-area: area;
+    color: #31423e;
+    font-weight: 700;
+  }
+
+  .status-cell {
+    grid-area: status;
+    display: flex;
+    justify-content: flex-end;
+    justify-self: stretch;
+    align-items: center;
+    text-align: right;
+  }
+
+  .score-cell {
+    grid-area: score;
+    justify-self: end;
+    align-self: center;
+    width: fit-content;
+    min-width: 58px;
+    border: 1px solid #0b3d35;
+    border-radius: 6px;
+    padding: 4px 8px;
+    background: #0b3d35;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .score-cell.is-empty-score {
+    border-style: dashed;
+    border-color: #9fb8b1;
+    background: #fff;
+    color: #667873;
+  }
+
+  .article-cell {
+    grid-area: article;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .visit-cell {
+    display: none;
+  }
+
+  .floor-cell,
+  .direction-cell,
+  .rooms-cell,
+  .maintenance-cell,
+  .deal-cell,
+  .households-cell,
+  .parking-cell,
+  .phone-cell,
+  .description-cell,
+  .link-cell {
+    display: none;
+  }
+
+  .status-pill {
+    min-width: 0;
+    width: fit-content;
+    margin-left: auto;
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  .detail-panel {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    max-height: none;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    background: #f8fffc;
+    box-shadow: none;
+  }
+
+  body.detail-open .detail-panel {
+    display: block;
+  }
+
+  .empty-detail {
+    display: none;
+  }
+
+  .detail-content {
+    padding: 16px 14px 28px;
+  }
+
+  .detail-title-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: -16px -14px 14px;
+    padding: 14px;
+    background: rgba(248, 255, 252, 0.94);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(14px);
+  }
+
+  .close-detail-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .detail-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .detail-actions .ghost-button {
+    width: 100%;
+  }
+
+  .summary-grid,
+  .detail-form-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rating-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .rating-grid select {
+    margin-bottom: 4px;
+  }
+
+  #listingDialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    overflow: auto;
+  }
+
+  .listing-form {
+    padding: 14px;
+  }
+
+  .dialog-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dialog-actions span {
+    display: none;
+  }
+
+  #deleteListingButton {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 420px) {
+  tbody tr {
+    min-height: 92px;
+    padding: 11px;
+  }
+
+  .price-cell {
+    font-size: 17px;
+  }
+
+  tbody tr {
+    grid-template-columns: minmax(0, 1fr) 100px;
+  }
+}

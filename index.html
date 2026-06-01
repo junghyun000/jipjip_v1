@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JIPJIP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>JIPJIP</h1>
+          <p>찜한 매물을 비교하고 임장 기록을 남기는 작업대</p>
+        </div>
+        <button id="addListingButton" class="primary-button" type="button">매물 추가</button>
+      </header>
+
+      <section class="controls" aria-label="매물 필터">
+        <label>
+          임장 날짜
+          <input id="visitDateFilter" type="date" />
+        </label>
+        <label>
+          상태
+          <select id="statusFilter">
+            <option value="">전체</option>
+          </select>
+        </label>
+        <label>
+          정렬
+          <select id="sortSelect">
+            <option value="visitDateAsc">임장일순</option>
+            <option value="priceAsc">가격 오름차순</option>
+            <option value="priceDesc">매매가 높은 순</option>
+            <option value="nameAsc">매물 이름순</option>
+            <option value="recentDealDesc">최근 실거래가순</option>
+            <option value="preferenceDesc">최종 선호도 높은 순</option>
+            <option value="statusAsc">상태순</option>
+          </select>
+        </label>
+      </section>
+
+      <main class="main-layout">
+        <section class="table-panel" aria-label="매물 비교표">
+          <div class="table-header">
+            <strong id="listingCount">0개 매물</strong>
+            <button id="resetSampleButton" class="ghost-button" type="button">샘플 복원</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>상태</th>
+                  <th>최종점수</th>
+                  <th>임장일</th>
+                  <th>단지명 / 매물명</th>
+                  <th>매물번호</th>
+                  <th>매매가</th>
+                  <th>평형 / 전용면적</th>
+                  <th>층수</th>
+                  <th>향</th>
+                  <th>방</th>
+                  <th>관리비</th>
+                  <th>최근 실거래가</th>
+                  <th>세대수</th>
+                  <th>주차</th>
+                  <th>부동산 전화</th>
+                  <th>매물소개</th>
+                  <th>링크</th>
+                </tr>
+              </thead>
+              <tbody id="listingRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside id="detailPanel" class="detail-panel" aria-label="매물 상세">
+          <div class="empty-detail">
+            <strong>매물을 선택하세요</strong>
+            <p>행을 클릭하면 임장 일정, 체크리스트, 협상 정보, 평가, 메모를 편집할 수 있습니다.</p>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <dialog id="listingDialog">
+      <form id="listingForm" method="dialog" class="listing-form">
+        <div class="dialog-header">
+          <h2 id="dialogTitle">매물 추가</h2>
+          <button class="icon-button" type="button" id="closeDialogButton" aria-label="닫기">×</button>
+        </div>
+
+        <input id="listingIdInput" type="hidden" />
+        <div class="form-grid">
+          <label class="manual-field">단지명 / 매물명<input id="nameInput" required /></label>
+          <label class="manual-field">매물번호<input id="articleNumberInput" /></label>
+          <label class="manual-field">매매가(만원)<input id="priceInput" type="number" min="0" step="100" /></label>
+          <label class="manual-field">최근 실거래가(만원)<input id="recentDealInput" type="number" min="0" step="100" /></label>
+          <label class="manual-field">공급면적(㎡)<input id="supplyAreaInput" type="number" min="0" step="0.01" /></label>
+          <label class="manual-field">전용면적(㎡)<input id="exclusiveAreaInput" type="number" min="0" step="0.01" /></label>
+          <label class="manual-field">층수<input id="floorInput" placeholder="9/19층" /></label>
+          <label class="manual-field">향<input id="directionInput" placeholder="북서향" /></label>
+          <label class="manual-field">방 개수<input id="roomsInput" type="number" min="0" step="1" /></label>
+          <label class="manual-field">관리비<input id="maintenanceInput" placeholder="15만원" /></label>
+          <label class="manual-field">세대수<input id="householdsInput" placeholder="191세대" /></label>
+          <label class="manual-field">주차<input id="parkingInput" placeholder="203대, 세대당 1.06대" /></label>
+          <label class="manual-field">부동산 전화번호<input id="realtorPhoneInput" inputmode="tel" placeholder="02-3661-1110" /></label>
+          <label class="full-span link-field">네이버부동산 링크<input id="naverUrlInput" type="url" /></label>
+          <label class="full-span manual-field">매물소개<textarea id="descriptionInput" rows="4"></textarea></label>
+        </div>
+
+        <div class="dialog-actions">
+          <button class="ghost-button" type="button" id="deleteListingButton">삭제</button>
+          <span></span>
+          <button class="secondary-button" type="button" id="cancelDialogButton">취소</button>
+          <button class="primary-button" type="submit" id="submitListingButton">저장</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
