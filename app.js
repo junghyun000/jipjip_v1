@@ -162,44 +162,27 @@ const ratingFields = [
 ];
 
 function createSampleListings() {
-  return [
-    {
-      id: crypto.randomUUID(),
-      status: "방문예정",
-      visitDate: "",
-      visited: false,
-      name: "등촌코오롱 101동",
-      articleNumber: "2628930751",
-      price: 83000,
-      recentDeal: 74500,
-      supplyArea: 88.52,
-      exclusiveArea: 59.99,
-      floor: "9/19층",
-      direction: "북서향",
-      rooms: 2,
-      maintenance: "15만원",
-      households: "191세대 (해당 면적 45세대)",
-      parking: "203대 (세대당 1.06대)",
-      realtorPhone: "02-3661-1110",
-      description:
-        "입주, 올수리, 거실 작은방 확장, 방2, 증미역/가양역 이용. 지하 주차장 엘리베이터 연결.",
-      naverUrl: "https://naver.me/G8ffF2Tq",
-      desiredPrice: "",
-      negotiablePrice: "",
-      offerPrice: "",
-      moveInDate: "즉시입주 협의 가능",
-      moveInMemo: "",
-      checklist: Array(checklistItems.length).fill(false),
-      ratings: {
-        location: "",
-        building: "",
-        interior: "",
-        price: "",
-        preference: "",
-      },
-      memo: "",
+  return Object.entries(naverListingImports).map(([naverUrl, listing]) => ({
+    id: crypto.randomUUID(),
+    status: naverUrl === "https://naver.me/G8ffF2Tq" ? "방문예정" : "미방문",
+    visitDate: "",
+    visited: false,
+    ...listing,
+    naverUrl,
+    desiredPrice: "",
+    negotiablePrice: "",
+    offerPrice: "",
+    moveInMemo: "",
+    checklist: Array(checklistItems.length).fill(false),
+    ratings: {
+      location: "",
+      building: "",
+      interior: "",
+      price: "",
+      preference: "",
     },
-  ];
+    memo: "",
+  }));
 }
 
 let listings = loadListings();
