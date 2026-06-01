@@ -166,6 +166,7 @@ function createSampleListings() {
     id: crypto.randomUUID(),
     status: naverUrl === "https://naver.me/G8ffF2Tq" ? "방문예정" : "미방문",
     visitDate: "",
+    visitTime: "",
     visited: false,
     ...listing,
     naverUrl,
@@ -187,6 +188,7 @@ function createSampleListings() {
 
 let listings = loadListings();
 let selectedId = null;
+let ignoreNextPopState = false;
 
 const els = {
   rows: document.querySelector("#listingRows"),
@@ -326,8 +328,7 @@ function render() {
   document.querySelectorAll("[data-row-id]").forEach((row) => {
     row.addEventListener("click", (event) => {
       if (event.target.closest("a")) return;
-      selectedId = row.dataset.rowId;
-      render();
+      selectListing(row.dataset.rowId);
     });
   });
 
@@ -338,6 +339,7 @@ function renderRow(listing) {
   const area = `${toPyeong(listing.supplyArea)} / 전용 ${listing.exclusiveArea || "-"}㎡`;
   const finalScore = listing.ratings?.preference;
   const finalScoreLabel = finalScore ? `★ ${finalScore}/5` : "점수 -";
+  const visitSchedule = formatVisitSchedule(listing);
   const articleNumber = escapeHtml(listing.articleNumber || "-");
   const articleNumberCell = listing.naverUrl
     ? `<a class="external-link" href="${escapeAttr(listing.naverUrl)}" target="_blank" rel="noreferrer">${articleNumber}</a>`
@@ -355,9 +357,10 @@ function renderRow(listing) {
     <tr data-row-id="${listing.id}" class="${listing.id === selectedId ? "is-selected" : ""}">
       <td data-label="상태" class="status-cell"><span class="status-pill" data-status="${listing.status}">${listing.status}</span></td>
       <td data-label="최종점수" class="score-cell ${finalScore ? "" : "is-empty-score"}">${escapeHtml(finalScoreLabel)}</td>
-      <td data-label="임장일" class="visit-cell">${listing.visitDate || "-"}</td>
+      <td data-label="임장일시" class="visit-cell">${escapeHtml(visitSchedule)}</td>
       <td data-label="단지명 / 매물명" class="name-cell">
         <strong>${escapeHtml(listing.name)}</strong>
+        <span class="visit-chip">${escapeHtml(visitSchedule)}</span>
         <span class="mobile-meta">${escapeHtml(listMeta.join(" · ") || "상세 정보 확인")}</span>
       </td>
       <td data-label="매물번호" class="article-cell">${articleNumberCell}</td>
@@ -396,9 +399,10 @@ function renderDetail() {
         <div>
           <h2>${escapeHtml(listing.name)}</h2>
           <span class="status-pill" data-status="${listing.status}">${listing.status}</span>
+          <span class="detail-visit-time">${escapeHtml(formatVisitSchedule(listing))}</span>
         </div>
         <div class="detail-actions">
-          <button class="ghost-button close-detail-button" type="button" id="closeDetailButton">목록</button>
+          <button class="ghost-button close-detail-button" type="button" id="closeDetailButton">← 뒤로</button>
           <button class="ghost-button" type="button" id="editListingButton">기본정보 수정</button>
           <button class="ghost-button danger-button" type="button" id="deleteDetailButton">삭제</button>
         </div>
@@ -416,6 +420,7 @@ function renderDetail() {
       <div class="detail-form-grid">
         ${selectField("status", "임장 상태", listing.status, statuses)}
         ${inputField("visitDate", "임장 예정일", listing.visitDate, "date")}
+        ${inputField("visitTime", "임장 시간", listing.visitTime, "time")}
         <label class="checkbox-label full-span">
           <input id="visitedInput" data-detail-field="visited" type="checkbox" ${listing.visited ? "checked" : ""} />
           실제 방문 완료
@@ -467,10 +472,7 @@ function renderDetail() {
     </div>
   `;
 
-  document.querySelector("#closeDetailButton").addEventListener("click", () => {
-    selectedId = null;
-    render();
-  });
+  document.querySelector("#closeDetailButton").addEventListener("click", closeDetail);
   document.querySelector("#editListingButton").addEventListener("click", () => openDialog(listing));
   document.querySelector("#deleteDetailButton").addEventListener("click", () => {
     if (!confirm("이 매물을 삭제할까요?")) return;
@@ -507,7 +509,7 @@ function bindDetailInputs(listing) {
       const field = input.dataset.detailField;
       listing[field] = input.type === "checkbox" ? input.checked : input.value;
       saveListings();
-      if (["status", "visitDate"].includes(field)) render();
+      if (["status", "visitDate", "visitTime"].includes(field)) render();
     });
   });
 
@@ -578,6 +580,7 @@ async function saveDialogListing(event) {
       id,
       status: "미방문",
       visitDate: "",
+      visitTime: "",
       visited: false,
       name: buildNameFromUrl(naverUrl),
       articleNumber: "",
@@ -645,8 +648,52 @@ function deleteSelectedListing() {
 
 function deleteListingById(id) {
   listings = listings.filter((item) => item.id !== id);
-  selectedId = null;
+  if (selectedId === id) {
+    selectedId = null;
+    clearDetailHash();
+  }
   saveListings();
+  render();
+}
+
+function selectListing(id, pushHistory = true) {
+  selectedId = id;
+  if (pushHistory) pushDetailHash(id);
+  render();
+}
+
+function closeDetail() {
+  if (!selectedId) return;
+  selectedId = null;
+  if (window.location.hash.startsWith("#listing-") && history.state?.selectedId) {
+    ignoreNextPopState = true;
+    history.back();
+  } else {
+    clearDetailHash();
+    render();
+  }
+}
+
+function pushDetailHash(id) {
+  const nextHash = `#listing-${encodeURIComponent(id)}`;
+  if (window.location.hash === nextHash) return;
+  history.pushState({ selectedId: id }, "", nextHash);
+}
+
+function clearDetailHash() {
+  if (!window.location.hash.startsWith("#listing-")) return;
+  history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+}
+
+function syncSelectionFromHash() {
+  const match = window.location.hash.match(/^#listing-(.+)$/);
+  if (!match) {
+    selectedId = null;
+    render();
+    return;
+  }
+  const id = decodeURIComponent(match[1]);
+  selectedId = listings.some((listing) => listing.id === id) ? id : null;
   render();
 }
 
@@ -665,6 +712,13 @@ function escapeAttr(value) {
 
 function normalizePhone(value) {
   return String(value || "").replace(/[^\d+]/g, "");
+}
+
+function formatVisitSchedule(listing) {
+  if (!listing.visitDate && !listing.visitTime) return "임장 미정";
+  if (!listing.visitDate) return listing.visitTime;
+  if (!listing.visitTime) return listing.visitDate;
+  return `${listing.visitDate} ${listing.visitTime}`;
 }
 
 function buildNameFromUrl(url) {
@@ -860,11 +914,13 @@ function init() {
   });
   document.querySelector("#closeDialogButton").addEventListener("click", () => els.dialog.close());
   document.querySelector("#cancelDialogButton").addEventListener("click", () => els.dialog.close());
-  document.querySelector("#resetSampleButton").addEventListener("click", () => {
-    listings = createSampleListings();
-    selectedId = null;
-    saveListings();
-    render();
+  window.addEventListener("popstate", () => {
+    if (ignoreNextPopState) {
+      ignoreNextPopState = false;
+      render();
+      return;
+    }
+    syncSelectionFromHash();
   });
   els.form.addEventListener("submit", saveDialogListing);
   els.deleteListingButton.addEventListener("click", deleteSelectedListing);
@@ -878,7 +934,7 @@ function init() {
     input.addEventListener("change", render);
   });
 
-  render();
+  syncSelectionFromHash();
   hydrateImportedListings();
 }
 
