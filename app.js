@@ -549,8 +549,9 @@ function renderDetail() {
       <h3>임장 일정</h3>
       <div class="detail-form-grid">
         ${selectField("status", "임장 상태", listing.status, statuses)}
-        ${inputField("visitDate", "임장 예정일", listing.visitDate, "date")}
-        ${inputField("visitTime", "임장 시간", listing.visitTime, "time")}
+        <label>임장 예정일<input id="visitDateDraft" type="date" value="${escapeAttr(normalizeDateValue(listing.visitDate))}" /></label>
+        <label>임장 시간<input id="visitTimeDraft" type="time" value="${escapeAttr(normalizeTimeValue(listing.visitTime))}" /></label>
+        <button class="secondary-button schedule-apply-button full-span" type="button" id="applyVisitScheduleButton">확인</button>
         <label class="checkbox-label full-span">
           <input id="visitedInput" data-detail-field="visited" type="checkbox" ${listing.visited ? "checked" : ""} />
           실제 방문 완료
@@ -604,6 +605,7 @@ function renderDetail() {
 
   document.querySelector("#closeDetailButton").addEventListener("click", closeDetail);
   document.querySelector("#editListingButton").addEventListener("click", () => openDialog(listing));
+  document.querySelector("#applyVisitScheduleButton").addEventListener("click", () => applyVisitSchedule(listing));
   document.querySelector("#deleteDetailButton").addEventListener("click", async () => {
     if (!confirm("이 매물을 삭제할까요?")) return;
     await deleteListingById(listing.id);
@@ -641,7 +643,7 @@ function bindDetailInputs(listing) {
       listing[field] = input.type === "checkbox" ? input.checked : input.value;
       saveListings();
       queueListingSync(listing);
-      if (["status", "visitDate", "visitTime"].includes(field)) render();
+      if (field === "status") render();
     });
   });
 
@@ -663,6 +665,16 @@ function bindDetailInputs(listing) {
       if (input.dataset.ratingField === "preference") render();
     });
   });
+}
+
+async function applyVisitSchedule(listing) {
+  const visitDate = normalizeDateValue(document.querySelector("#visitDateDraft").value);
+  const visitTime = normalizeTimeValue(document.querySelector("#visitTimeDraft").value);
+  const next = { ...listing, visitDate, visitTime };
+  const saved = await syncListing(next, "임장 일정 저장 실패");
+  if (!saved) return;
+  Object.assign(listing, next);
+  render();
 }
 
 function openDialog(listing = null) {
@@ -861,15 +873,56 @@ function normalizePhone(value) {
 }
 
 function formatVisitSchedule(listing) {
-  if (!listing.visitDate && !listing.visitTime) return "임장 미정";
-  if (!listing.visitDate) return listing.visitTime;
-  if (!listing.visitTime) return listing.visitDate;
-  return `${listing.visitDate} ${listing.visitTime}`;
+  const date = formatKoreanDate(listing.visitDate);
+  const time = normalizeTimeValue(listing.visitTime);
+  if (!date && !time) return "임장 미정";
+  if (!date) return time;
+  if (!time) return date;
+  return `${date} ${time}`;
 }
 
 function formatHouseholdCount(value) {
   const match = String(value || "").match(/\d[\d,]*\s*세대/);
   return match ? match[0].replace(/\s+/g, "") : "";
+}
+
+function normalizeDateValue(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatDateParts(value);
+  }
+  const text = String(value);
+  const match = text.match(/\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? "" : formatDateParts(parsed);
+}
+
+function normalizeTimeValue(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getUTCHours()).padStart(2, "0")}:${String(value.getUTCMinutes()).padStart(2, "0")}`;
+  }
+  const text = String(value);
+  const match = text.match(/\d{2}:\d{2}/);
+  return match ? match[0] : "";
+}
+
+function formatDateParts(date) {
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function formatKoreanDate(value) {
+  const normalized = normalizeDateValue(value);
+  if (!normalized) return "";
+  const [year, month, day] = normalized.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${year}년 ${month}월 ${day}일(${weekdays[date.getUTCDay()]})`;
 }
 
 function buildNameFromUrl(url) {

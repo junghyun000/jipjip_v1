@@ -380,12 +380,31 @@ function toNumberOrNull(value) {
 
 function formatDate(value) {
   if (!value) return "";
-  return String(value).slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatDateParts(value);
+  }
+  const text = String(value);
+  const match = text.match(/\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? "" : formatDateParts(parsed);
 }
 
 function formatTime(value) {
   if (!value) return "";
-  return String(value).slice(0, 5);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getUTCHours()).padStart(2, "0")}:${String(value.getUTCMinutes()).padStart(2, "0")}`;
+  }
+  const match = String(value).match(/\d{2}:\d{2}/);
+  return match ? match[0] : "";
+}
+
+function formatDateParts(date) {
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 function parseJsonValue(value, fallback) {
