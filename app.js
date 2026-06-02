@@ -1,4 +1,5 @@
 const STORAGE_KEY = "jipjip:listings:v1";
+const LISTINGS_API_PATH = "/api/listings";
 
 const naverListingImports = {
   "https://naver.me/G8ffF2Tq": {
@@ -186,9 +187,15 @@ function createSampleListings() {
   }));
 }
 
-let listings = loadListings();
+let listings = [];
 let selectedId = null;
 let ignoreNextPopState = false;
+let remoteListingsEnabled = false;
+const listingSyncTimers = new Map();
+const databaseState = {
+  kind: "loading",
+  message: "데이터베이스 연결 확인 중",
+};
 
 const els = {
   rows: document.querySelector("#listingRows"),
@@ -197,6 +204,7 @@ const els = {
   statusFilter: document.querySelector("#statusFilter"),
   visitDateFilter: document.querySelector("#visitDateFilter"),
   sortSelect: document.querySelector("#sortSelect"),
+  dbStatus: document.querySelector("#dbStatus"),
   dialog: document.querySelector("#listingDialog"),
   form: document.querySelector("#listingForm"),
   dialogTitle: document.querySelector("#dialogTitle"),
@@ -205,16 +213,115 @@ const els = {
 };
 
 function loadListings() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    return Array.isArray(stored) && stored.length > 0 ? enrichListingsFromNaverImports(stored) : createSampleListings();
-  } catch {
-    return createSampleListings();
-  }
+  return [];
 }
 
 function saveListings() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(listings));
+  // DB-only mode: never persist listing data to browser localStorage.
+}
+
+async function hydrateRemoteListings() {
+  setDatabaseState("loading", "데이터베이스 연결 확인 중");
+  try {
+    const response = await fetch(LISTINGS_API_PATH, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error(`DB 목록 불러오기 실패 (${response.status})`);
+    }
+    const remoteListings = await response.json();
+    if (!Array.isArray(remoteListings)) {
+      throw new Error("DB 응답 형식이 올바르지 않습니다.");
+    }
+
+    remoteListingsEnabled = true;
+    setDatabaseState("ready", "데이터베이스 연결됨");
+    listings = enrichListingsFromNaverImports(remoteListings);
+    if (selectedId && !listings.some((listing) => listing.id === selectedId)) selectedId = null;
+    render();
+    hydrateImportedListings();
+  } catch (error) {
+    remoteListingsEnabled = false;
+    listings = [];
+    selectedId = null;
+    setDatabaseState("error", `${error.message} 저장은 로컬이 아니라 DB에만 가능하므로 현재 비활성화했습니다.`);
+    render();
+  }
+}
+
+function queueListingSync(listing) {
+  if (!remoteListingsEnabled || !listing?.id) {
+    setDatabaseState("error", "DB 연결이 없어 저장할 수 없습니다.");
+    return;
+  }
+  clearTimeout(listingSyncTimers.get(listing.id));
+  listingSyncTimers.set(
+    listing.id,
+    setTimeout(() => {
+      listingSyncTimers.delete(listing.id);
+      syncListing(listing, "변경사항 저장 실패");
+    }, 350),
+  );
+}
+
+async function syncListing(listing, failureLabel = "DB 저장 실패") {
+  if (!remoteListingsEnabled || !listing?.id) {
+    setDatabaseState("error", "DB 연결이 없어 저장할 수 없습니다.");
+    return false;
+  }
+  try {
+    const response = await fetch(`${LISTINGS_API_PATH}/${encodeURIComponent(listing.id)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(listing),
+    });
+    if (!response.ok) {
+      throw new Error(`${failureLabel} (${response.status})`);
+    }
+    setDatabaseState("ready", "DB 저장 완료");
+    return true;
+  } catch (error) {
+    remoteListingsEnabled = false;
+    setDatabaseState("error", `${error.message} 로컬에는 저장하지 않았습니다.`);
+    return false;
+  }
+}
+
+async function syncDeletedListing(id) {
+  if (!remoteListingsEnabled || !id) {
+    setDatabaseState("error", "DB 연결이 없어 삭제할 수 없습니다.");
+    return false;
+  }
+  try {
+    const response = await fetch(`${LISTINGS_API_PATH}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error(`DB 삭제 실패 (${response.status})`);
+    }
+    setDatabaseState("ready", "DB 삭제 완료");
+    return true;
+  } catch (error) {
+    remoteListingsEnabled = false;
+    setDatabaseState("error", `${error.message} 로컬에는 삭제 상태를 저장하지 않았습니다.`);
+    return false;
+  }
+}
+
+function setDatabaseState(kind, message) {
+  databaseState.kind = kind;
+  databaseState.message = message;
+  renderDatabaseStatus();
+}
+
+function renderDatabaseStatus() {
+  if (!els.dbStatus) return;
+  els.dbStatus.dataset.state = databaseState.kind;
+  els.dbStatus.textContent = databaseState.message;
+  const disabled = databaseState.kind !== "ready";
+  els.submitListingButton.disabled = disabled;
+  document.querySelector("#addListingButton").disabled = disabled;
 }
 
 function enrichListingsFromNaverImports(items) {
@@ -497,9 +604,9 @@ function renderDetail() {
 
   document.querySelector("#closeDetailButton").addEventListener("click", closeDetail);
   document.querySelector("#editListingButton").addEventListener("click", () => openDialog(listing));
-  document.querySelector("#deleteDetailButton").addEventListener("click", () => {
+  document.querySelector("#deleteDetailButton").addEventListener("click", async () => {
     if (!confirm("이 매물을 삭제할까요?")) return;
-    deleteListingById(listing.id);
+    await deleteListingById(listing.id);
   });
   bindDetailInputs(listing);
 }
@@ -527,11 +634,13 @@ function bindDetailInputs(listing) {
     input.addEventListener("input", () => {
       listing[input.dataset.detailField] = input.type === "checkbox" ? input.checked : input.value;
       saveListings();
+      queueListingSync(listing);
     });
     input.addEventListener("change", () => {
       const field = input.dataset.detailField;
       listing[field] = input.type === "checkbox" ? input.checked : input.value;
       saveListings();
+      queueListingSync(listing);
       if (["status", "visitDate", "visitTime"].includes(field)) render();
     });
   });
@@ -541,6 +650,7 @@ function bindDetailInputs(listing) {
       listing.checklist = listing.checklist || Array(checklistItems.length).fill(false);
       listing.checklist[Number(input.dataset.checklistIndex)] = input.checked;
       saveListings();
+      queueListingSync(listing);
     });
   });
 
@@ -549,6 +659,7 @@ function bindDetailInputs(listing) {
       listing.ratings = listing.ratings || {};
       listing.ratings[input.dataset.ratingField] = input.value;
       saveListings();
+      queueListingSync(listing);
       if (input.dataset.ratingField === "preference") render();
     });
   });
@@ -587,6 +698,10 @@ function openDialog(listing = null) {
 
 async function saveDialogListing(event) {
   event.preventDefault();
+  if (!remoteListingsEnabled) {
+    setDatabaseState("error", "DB 연결이 없어 저장할 수 없습니다.");
+    return;
+  }
   const id = document.querySelector("#listingIdInput").value || crypto.randomUUID();
   const existing = listings.find((item) => item.id === id);
   const naverUrlInput = document.querySelector("#naverUrlInput");
@@ -629,7 +744,10 @@ async function saveDialogListing(event) {
       ratings: { location: "", building: "", interior: "", price: "", preference: "" },
       memo: "",
     };
-    listings = [imported ? mergeImportedListing(next, imported) : next, ...listings];
+    const createdListing = imported ? mergeImportedListing(next, imported) : next;
+    const saved = await syncListing(createdListing, "매물 추가 실패");
+    if (!saved) return;
+    listings = [createdListing, ...listings];
     selectedId = null;
     saveListings();
     els.dialog.close();
@@ -656,6 +774,8 @@ async function saveDialogListing(event) {
     description: document.querySelector("#descriptionInput").value.trim(),
   };
 
+  const saved = await syncListing(next, "매물 수정 실패");
+  if (!saved) return;
   listings = listings.map((item) => (item.id === id ? next : item));
   selectedId = id;
   saveListings();
@@ -663,13 +783,15 @@ async function saveDialogListing(event) {
   render();
 }
 
-function deleteSelectedListing() {
+async function deleteSelectedListing() {
   const id = document.querySelector("#listingIdInput").value;
-  deleteListingById(id);
-  els.dialog.close();
+  const deleted = await deleteListingById(id);
+  if (deleted) els.dialog.close();
 }
 
-function deleteListingById(id) {
+async function deleteListingById(id) {
+  const deleted = await syncDeletedListing(id);
+  if (!deleted) return false;
   listings = listings.filter((item) => item.id !== id);
   if (selectedId === id) {
     selectedId = null;
@@ -677,6 +799,7 @@ function deleteListingById(id) {
   }
   saveListings();
   render();
+  return true;
 }
 
 function selectListing(id, pushHistory = true) {
@@ -812,6 +935,7 @@ async function hydrateImportedListings() {
 
   if (changed) {
     saveListings();
+    listings.forEach(queueListingSync);
     render();
   }
 }
@@ -962,8 +1086,15 @@ function init() {
     input.addEventListener("change", render);
   });
 
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Ignore storage access errors; DB mode does not depend on localStorage.
+  }
+
+  renderDatabaseStatus();
   syncSelectionFromHash();
-  hydrateImportedListings();
+  hydrateRemoteListings();
 }
 
 init();
