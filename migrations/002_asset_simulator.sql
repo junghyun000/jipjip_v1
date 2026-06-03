@@ -35,11 +35,12 @@ create trigger silver_town_tiers_set_updated_at
 before update on silver_town_tiers
 for each row execute function set_updated_at();
 
+-- 등급 대표값: 2026 리서치(부부 2인, 반환형) 기준. 근거: docs/silver-town-research.md
 insert into silver_town_tiers (id, label, deposit_base, monthly_cost_base, refundable, notes, display_order) values
-  ('top',  '최상급', 90000, 600, true,  '더클래식500급. 서울 강남권 고급 시설.', 1),
-  ('high', '상급',   50000, 400, true,  '서울 중상위권 평균치.',                  2),
-  ('mid',  '중급',   30000, 300, true,  '수도권 외곽 중급 시설 (기본 선택).',     3),
-  ('low',  '하급',   15000, 200, true,  '지방 또는 소규모 시설.',                 4)
+  ('top',  '최상급', 100000, 450, true, '더클래식500·VL르웨스트·삼성노블 대형. 호텔식 풀서비스 (보증금 8~12억, 월 350~500만).', 1),
+  ('high', '상급',   55000,  350, true, '삼성노블 중형·더시그넘하우스·서울시니어스 대형 (보증금 4~7억, 월 280~400만).',        2),
+  ('mid',  '중급',   30000,  250, true, '노블레스타워·마리스텔라·서울시니어스 중형 (보증금 2.5~4억, 월 200~280만).',          3),
+  ('low',  '하급',   20000,  180, true, '스프링카운티자이·사이언스빌리지 등 도심소형/비수도권 (보증금 1.5~2.5억, 월 150~200만).', 4)
 on conflict (id) do update set
   label             = excluded.label,
   deposit_base      = excluded.deposit_base,

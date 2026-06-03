@@ -1,8 +1,18 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  listTiers,
+  listScenarios,
+  getScenario,
+  createScenario,
+  updateScenario,
+  deleteScenario,
+  validateScenario,
+} from "./api/_db.js";
 
-const root = new URL(".", import.meta.url).pathname;
+const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 4174);
 const host = process.env.HOST || "127.0.0.1";
 let dbSqlPromise = null;
@@ -164,6 +174,30 @@ createServer(async (req, res) => {
       await handleNaverImport(url, res);
       return;
     }
+    if (url.pathname === "/api/tiers" && req.method === "GET") {
+      await handleTiers(res);
+      return;
+    }
+    if (url.pathname === "/api/scenarios" && req.method === "GET") {
+      await handleListScenarios(res);
+      return;
+    }
+    if (url.pathname === "/api/scenarios" && req.method === "POST") {
+      await handleCreateScenario(req, res);
+      return;
+    }
+    if (url.pathname.startsWith("/api/scenarios/") && req.method === "GET") {
+      await handleGetScenario(url, res);
+      return;
+    }
+    if (url.pathname.startsWith("/api/scenarios/") && req.method === "PUT") {
+      await handleUpdateScenario(req, url, res);
+      return;
+    }
+    if (url.pathname.startsWith("/api/scenarios/") && req.method === "DELETE") {
+      await handleDeleteScenario(url, res);
+      return;
+    }
     if (url.pathname === "/api/listings" && req.method === "GET") {
       await handleListListings(res);
       return;
@@ -290,6 +324,83 @@ async function handleDeleteListing(url, res) {
 
   const id = decodeURIComponent(url.pathname.split("/").pop() || "");
   await sql`delete from listings where id = ${id}`;
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleTiers(res) {
+  const tiers = await listTiers();
+  if (!tiers) {
+    sendJson(res, 503, { error: "DATABASE_URL is not configured" });
+    return;
+  }
+  sendJson(res, 200, tiers);
+}
+
+async function handleListScenarios(res) {
+  const list = await listScenarios();
+  if (!list) {
+    sendJson(res, 503, { error: "DATABASE_URL is not configured" });
+    return;
+  }
+  sendJson(res, 200, list);
+}
+
+async function handleCreateScenario(req, res) {
+  const body = await readJsonBody(req);
+  const errors = validateScenario(body);
+  if (errors) {
+    sendJson(res, 422, { errors });
+    return;
+  }
+  const created = await createScenario(body);
+  if (!created) {
+    sendJson(res, 503, { error: "DATABASE_URL is not configured" });
+    return;
+  }
+  sendJson(res, 201, created);
+}
+
+async function handleGetScenario(url, res) {
+  const id = decodeURIComponent(url.pathname.split("/").pop() || "");
+  const scenario = await getScenario(id);
+  if (!scenario) {
+    sendJson(res, 404, { error: "Not found" });
+    return;
+  }
+  sendJson(res, 200, scenario);
+}
+
+async function handleUpdateScenario(req, url, res) {
+  const id = decodeURIComponent(url.pathname.split("/").pop() || "");
+  const body = await readJsonBody(req);
+  const errors = validateScenario(body);
+  if (errors) {
+    sendJson(res, 422, { errors });
+    return;
+  }
+  const updated = await updateScenario(id, body);
+  if (!updated) {
+    sendJson(res, 404, { error: "Not found" });
+    return;
+  }
+  sendJson(res, 200, updated);
+}
+
+async function handleDeleteScenario(url, res) {
+  const id = decodeURIComponent(url.pathname.split("/").pop() || "");
+  const result = await deleteScenario(id);
+  if (!result) {
+    sendJson(res, 503, { error: "DATABASE_URL is not configured" });
+    return;
+  }
+  if (result.notFound) {
+    sendJson(res, 404, { error: "Not found" });
+    return;
+  }
+  if (result.forbidden) {
+    sendJson(res, 400, { error: "기본 시나리오는 삭제할 수 없습니다." });
+    return;
+  }
   sendJson(res, 200, { ok: true });
 }
 

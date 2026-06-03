@@ -11,11 +11,23 @@
       <header class="topbar">
         <div>
           <h1>JIPJIP</h1>
-          <p>찜한 매물을 비교하고 임장 기록을 남기는 작업대</p>
+          <p id="topbarTagline">찜한 매물을 비교하고 임장 기록을 남기는 작업대</p>
         </div>
-        <button id="addListingButton" class="primary-button" type="button">매물 추가</button>
+        <button id="addListingButton" class="primary-button" type="button" data-listings-only>매물 추가</button>
       </header>
 
+      <nav class="tab-bar" role="tablist" aria-label="기능 전환">
+        <button class="tab-button is-active" role="tab" id="tab-listings" data-target="listings" aria-selected="true" aria-controls="panel-listings">
+          🏠 매물 추적기
+        </button>
+        <button class="tab-button" role="tab" id="tab-simulator" data-target="simulator" aria-selected="false" aria-controls="panel-simulator" tabindex="-1">
+          📊 노후 자금 시뮬레이터
+        </button>
+      </nav>
+
+      <div id="dbStatus" class="db-status" role="status" aria-live="polite"></div>
+
+      <section data-tab="listings" id="panel-listings" role="tabpanel" aria-labelledby="tab-listings">
       <section class="controls" aria-label="매물 필터">
         <label>
           임장 날짜
@@ -40,8 +52,6 @@
           </select>
         </label>
       </section>
-
-      <div id="dbStatus" class="db-status" role="status" aria-live="polite"></div>
 
       <main class="main-layout">
         <section class="table-panel" aria-label="매물 비교표">
@@ -83,6 +93,13 @@
           </div>
         </aside>
       </main>
+      </section>
+
+      <section data-tab="simulator" id="panel-simulator" role="tabpanel" aria-labelledby="tab-simulator" hidden>
+        <div id="simRoot" class="sim-root">
+          <noscript>이 기능은 자바스크립트가 필요합니다.</noscript>
+        </div>
+      </section>
     </div>
 
     <dialog id="listingDialog">
@@ -120,6 +137,8 @@
       </form>
     </dialog>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="./app.js"></script>
+    <script src="./simulator.js"></script>
   </body>
 </html>
