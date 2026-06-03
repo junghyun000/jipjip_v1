@@ -1195,6 +1195,40 @@ tbody tr.is-selected {
 .sim-glossary code { background: var(--panel-strong); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .sim-disclaimer { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 
+/* 라이프 이벤트 */
+.ev-list { display: flex; flex-direction: column; gap: 10px; }
+.ev-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+.ev-row[data-evcat="health"] { border-left: 4px solid var(--danger); }
+.ev-row[data-evcat="family"] { border-left: 4px solid var(--accent-dark); }
+.ev-row[data-evcat="market"] { border-left: 4px solid var(--warning); }
+.ev-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ev-toggle {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: #2c3b37;
+  font-weight: 800;
+}
+.ev-toggle > input[type="checkbox"] { width: 18px; height: 18px; margin: 0; }
+.ev-toggle strong { min-width: 0; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.3; }
+.ev-badge { padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.ev-badge-one_time { background: var(--accent-soft); color: var(--accent-dark); }
+.ev-badge-probabilistic { background: #fff6e8; color: #8a4f00; }
+.ev-badge-market_shock { background: #fdeef0; color: var(--danger); }
+.ev-body { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.ev-body label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.ev-body input { border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-weight: 700; color: var(--text); }
+
 .sim-toast {
   position: fixed;
   left: 50%;

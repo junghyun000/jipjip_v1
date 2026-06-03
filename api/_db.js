@@ -270,6 +270,7 @@ function scenarioValues(b) {
     retire_age_wife: n(b.retire_age_wife, 60), retire_age_husband: n(b.retire_age_husband, 60),
     pension_start_age: n(b.pension_start_age, 65), pension_auto: b.pension_auto == null ? true : !!b.pension_auto,
     pension_monthly_override: opt(b.pension_monthly_override), medical_buffer_today: n(b.medical_buffer_today, 20000),
+    life_events: JSON.stringify(Array.isArray(b.life_events) ? b.life_events : []),
   };
 }
 
@@ -287,7 +288,7 @@ export async function createScenario(b) {
       inflation_rate, investment_return, cash_return, real_estate_return,
       savings_rate, savings_alloc_cash, in_residence_real_return,
       retire_age_wife, retire_age_husband, pension_start_age, pension_auto, pension_monthly_override,
-      medical_buffer_today
+      medical_buffer_today, life_events
     ) values (
       ${v.name}, ${v.description}, ${v.base_year}, ${v.wife_age}, ${v.husband_age}, ${v.entry_age}, ${v.stay_years},
       ${v.cash_current}, ${v.investment_current}, ${v.real_estate_current}, ${v.has_real_estate}, ${v.sell_mode}, ${v.sell_year_custom}, ${v.re_sell_cost_rate},
@@ -297,7 +298,7 @@ export async function createScenario(b) {
       ${v.inflation_rate}, ${v.investment_return}, ${v.cash_return}, ${v.real_estate_return},
       ${v.savings_rate}, ${v.savings_alloc_cash}, ${v.in_residence_real_return},
       ${v.retire_age_wife}, ${v.retire_age_husband}, ${v.pension_start_age}, ${v.pension_auto}, ${v.pension_monthly_override},
-      ${v.medical_buffer_today}
+      ${v.medical_buffer_today}, ${v.life_events}::jsonb
     )
     returning id, name, is_default, created_at
   `;
@@ -322,7 +323,8 @@ export async function updateScenario(id, b) {
       inflation_rate = ${v.inflation_rate}, investment_return = ${v.investment_return}, cash_return = ${v.cash_return}, real_estate_return = ${v.real_estate_return},
       savings_rate = ${v.savings_rate}, savings_alloc_cash = ${v.savings_alloc_cash}, in_residence_real_return = ${v.in_residence_real_return},
       retire_age_wife = ${v.retire_age_wife}, retire_age_husband = ${v.retire_age_husband}, pension_start_age = ${v.pension_start_age},
-      pension_auto = ${v.pension_auto}, pension_monthly_override = ${v.pension_monthly_override}, medical_buffer_today = ${v.medical_buffer_today}
+      pension_auto = ${v.pension_auto}, pension_monthly_override = ${v.pension_monthly_override}, medical_buffer_today = ${v.medical_buffer_today},
+      life_events = ${v.life_events}::jsonb
     where id = ${id}
     returning id, name, is_default, updated_at
   `;

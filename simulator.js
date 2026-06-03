@@ -22,6 +22,19 @@
   ];
   let TIERS = TIER_FALLBACK.slice();
 
+  // 라이프 이벤트 기본값 (와이프 나이 기준, 금액=만원/현재가치)
+  // 출처: 한국소비자원 장례비 평균, 국립암센터 누적암발생률, 베어마켓 통계
+  const DEFAULT_EVENTS = [
+    { id: "fwm",  label: "와이프 어머니 장례식", category: "family", type: "one_time",      atAge: 58, amountToday: 1500, enabled: true },
+    { id: "fwf",  label: "와이프 아버지 장례식", category: "family", type: "one_time",      atAge: 60, amountToday: 1500, enabled: true },
+    { id: "fhm",  label: "남편 어머니 장례식",   category: "family", type: "one_time",      atAge: 56, amountToday: 1500, enabled: true },
+    { id: "fhf",  label: "남편 아버지 장례식",   category: "family", type: "one_time",      atAge: 58, amountToday: 1500, enabled: true },
+    { id: "care", label: "양가 부모 간병/요양 (분담)", category: "family", type: "probabilistic", startAge: 50, endAge: 65, probability: 0.60, amountToday: 6000, enabled: true },
+    { id: "illw", label: "와이프 중대 질병 (암 등)", category: "health", type: "probabilistic", startAge: 50, endAge: 75, probability: 0.20, amountToday: 4000, enabled: true },
+    { id: "illh", label: "남편 중대 질병 (암 등)",   category: "health", type: "probabilistic", startAge: 50, endAge: 75, probability: 0.27, amountToday: 4500, enabled: true },
+    { id: "shock", label: "주식 시장 충격 (베어마켓)", category: "market", type: "market_shock", startAge: 28, endAge: 75, expectedCount: 6, severity: 0.25, enabled: true },
+  ];
+
   const DEFAULTS = {
     wifeAge: 28, husbandAge: 33, entryAge: 75, stayYears: 10,
     cashCurrent: 10000, investmentCurrent: 20000,
@@ -34,6 +47,7 @@
     savingsRate: 0.30, allocCash: 0.30, inResidenceReal: 0.01,
     retireWife: 60, retireHusband: 60, pensionStartAge: 65, pensionAuto: true, pensionMonthlyOverride: null,
     bufferToday: 20000,
+    events: DEFAULT_EVENTS.map((e) => ({ ...e })),
   };
 
   let state = loadState();
@@ -60,6 +74,41 @@
     const w = ageW < s.retireWife ? s.wifeIncome * Math.pow(1 + g, expo(t)) : 0;
     const h = ageH < s.retireHusband ? s.husbandIncome * Math.pow(1 + g, expo(t)) : 0;
     return { wife: w, husband: h, gross: w + h };
+  }
+
+  // 라이프 이벤트: 결정/확률/시장충격 3타입을 그 해 명목 비용·시장 손실율로 환산
+  function lifeEventsAtAge(s, ageW, t) {
+    const events = Array.isArray(s.events) ? s.events : [];
+    let cost = 0;          // 그 해 라이프 이벤트 지출 (명목, 만원)
+    let shockRate = 0;     // 그 해 inv 차감율 (시장 충격, 0~1)
+    const spikes = [];     // 그 해 발생한 결정적 이벤트 목록
+    const inflFactor = Math.pow(1 + s.inflation, t);
+    for (const ev of events) {
+      if (!ev || !ev.enabled) continue;
+      if (ev.type === "one_time") {
+        if (Number(ev.atAge) === ageW) {
+          const amt = Math.max(0, Number(ev.amountToday) || 0) * inflFactor;
+          cost += amt;
+          spikes.push({ id: ev.id, label: ev.label, amount: amt });
+        }
+      } else if (ev.type === "probabilistic") {
+        const a0 = Number(ev.startAge), a1 = Number(ev.endAge);
+        if (ageW >= a0 && ageW <= a1) {
+          const years = Math.max(1, a1 - a0 + 1);
+          const annualExpected = (Math.max(0, Math.min(1, Number(ev.probability) || 0)) * Math.max(0, Number(ev.amountToday) || 0)) / years;
+          cost += annualExpected * inflFactor;
+        }
+      } else if (ev.type === "market_shock") {
+        const a0 = Number(ev.startAge), a1 = Number(ev.endAge);
+        if (ageW >= a0 && ageW <= a1) {
+          const years = Math.max(1, a1 - a0 + 1);
+          const count = Math.max(0, Number(ev.expectedCount) || 0);
+          const sev = Math.max(0, Math.min(1, Number(ev.severity) || 0));
+          shockRate += (count / years) * sev;
+        }
+      }
+    }
+    return { cost, shockRate: Math.min(0.99, shockRate), spikes };
   }
 
   function pensionAt(s, t) {
@@ -94,6 +143,11 @@
       : Infinity;
     let sellProceeds = 0, sellAtYear = null;
     let buyAtYear = null, buyPriceNominal = 0, purchaseShortfall = 0;
+    let cumLifeEvents = 0;          // 누적 라이프 이벤트 지출 (명목)
+    let cumLifeEventsToday = 0;     // 누적 라이프 이벤트 지출 (현재가치)
+    let totalShockLoss = 0;         // 누적 시장 충격 손실 추정 (명목, 표시용)
+    const lifeEventSeries = [];     // [{t, year, ageW, cost, cumNom, cumToday}]
+    const lifeEventSpikes = [];     // 일회성 이벤트 발생 기록 (카드/툴팁용)
 
     for (let t = 0; t <= Tmax; t++) {
       const inc = incomeAt(s, t);
@@ -113,6 +167,24 @@
       W.cash = W.cash * (1 + s.cashReturn) + toCash;
       W.inv = W.inv * (1 + s.investReturn) + toInv;
       W.re = W.re * (1 + s.reReturn);
+
+      // 라이프 이벤트 (t+1 시점) — 시장 충격은 inv에서 차감, 비용은 cash→inv 순
+      const nextAgeW = s.wifeAge + t + 1;
+      const lev = lifeEventsAtAge(s, nextAgeW, t + 1);
+      if (lev.shockRate > 0 && W.inv > 0) {
+        const loss = W.inv * lev.shockRate;
+        W.inv = Math.max(0, W.inv - loss);
+        totalShockLoss += loss;
+      }
+      if (lev.cost > 0) {
+        let needE = lev.cost;
+        const fromCashE = Math.min(W.cash, needE); W.cash = Math.max(0, W.cash - fromCashE); needE -= fromCashE;
+        const fromInvE = Math.min(W.inv, needE); W.inv = Math.max(0, W.inv - fromInvE); needE -= fromInvE;
+        cumLifeEvents += lev.cost;
+        cumLifeEventsToday += lev.cost / Math.pow(1 + infl, t + 1);
+        lifeEventSeries.push({ t: t + 1, year: BASE_YEAR + t + 1, ageW: nextAgeW, cost: lev.cost, cumNom: cumLifeEvents, cumToday: cumLifeEventsToday });
+        lev.spikes.forEach((sp) => lifeEventSpikes.push({ ageW: nextAgeW, year: BASE_YEAR + t + 1, label: sp.label, amount: sp.amount }));
+      }
 
       // 미래 매입: 매입 시점에 도달하면 cash → inv 순으로 매입가 조달
       if (mode === "buy_later" && buyAtYear == null && t + 1 === buyYear) {
@@ -180,6 +252,11 @@
       sellProceeds, sellAtYear, stayCurve, depletedAt,
       buyAtYear, buyPriceNominal, purchaseShortfall,
       pensionAtEntry: pensionAt(s, T),
+      lifeEventSeries, lifeEventSpikes,
+      cumLifeEvents, cumLifeEventsToday, totalShockLoss,
+      // 75세 시점까지 누적 라이프 이벤트 (메트릭 카드용)
+      cumLifeEventsAt75: lifeEventSeries.filter((p) => p.t <= T).reduce((m, p) => Math.max(m, p.cumNom), 0),
+      cumLifeEventsTodayAt75: lifeEventSeries.filter((p) => p.t <= T).reduce((m, p) => Math.max(m, p.cumToday), 0),
     };
   }
 
@@ -201,9 +278,13 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(LS_STATE);
-      if (raw) return Object.assign({}, DEFAULTS, JSON.parse(raw));
+      if (raw) {
+        const merged = Object.assign({}, DEFAULTS, JSON.parse(raw));
+        if (!Array.isArray(merged.events) || !merged.events.length) merged.events = DEFAULT_EVENTS.map((e) => ({ ...e }));
+        return merged;
+      }
     } catch {}
-    return Object.assign({}, DEFAULTS);
+    return Object.assign({}, DEFAULTS, { events: DEFAULT_EVENTS.map((e) => ({ ...e })) });
   }
   function persistState() { try { localStorage.setItem(LS_STATE, JSON.stringify(state)); } catch {} }
   function clampStayToOption(v) { return [10, 20, 30].includes(Number(v)) ? Number(v) : 10; }
@@ -376,6 +457,14 @@
               ${numCtrl("bufferToday", "의료·예비비 버퍼(현재가치)", { unit: "억", scale: 10000, min: 0, step: 0.1 })}
             </div>
           </details>
+
+          <details class="sim-sec"><summary>🪦 라이프 이벤트 (예측 가능한 큰 지출)</summary>
+            <div class="sim-sec-body">
+              <p class="sim-help">결정/확률/시장충격 3종. <b>결정적</b> 사건은 시점·비용을 입력합니다. <b>확률적</b> 사건은 구간·확률·비용 → 기대값(연 평균)이 매년 분산 적용됩니다. <b>시장 충격</b>은 47년 중 발생 횟수·강도 → 평균 손실이 매년 투자 자산에서 차감됩니다. 모든 비용은 <b>현재가치</b>로 입력하세요.</p>
+              <div id="evList" class="ev-list"></div>
+              <button type="button" id="evResetBtn" class="ghost-button">기본값으로 초기화</button>
+            </div>
+          </details>
         </aside>
 
         <main class="sim-output">
@@ -417,6 +506,10 @@
               <dt>국민연금 (소득대체율)</dt><dd>가입 기간·소득에 비례해 노후에 매달 받는 공적연금. 본 시뮬레이터는 2021년 가입 기준으로 단순 추정합니다(실제와 차이 가능).</dd>
               <dt>버퍼 (예비비)</dt><dd>의료비·요양 전환 등 예측 못한 지출에 대비해 따로 확보하는 여유 자금.</dd>
               <dt>3-버킷 (현금/투자/부동산)</dt><dd>자산을 성격별로 나눠 각기 다른 수익률·물가 민감도로 굴리는 방식.</dd>
+              <dt>결정적 이벤트 (Deterministic)</dt><dd>발생 시점과 비용이 거의 확정적인 사건. 예: 양가 부모님 장례식. 입력한 시점에 일회성 지출로 반영됩니다.</dd>
+              <dt>확률적 이벤트 (Probabilistic) — 기대값 모델</dt><dd>발생할 수도 안 할 수도 있는 사건. <code>구간 내 매년 비용 = 확률 × 비용 ÷ 구간 길이</code>로 평활(smoothing)해서 매년 차감합니다. 실제로는 한 시점에 큰 비용이 발생하지만, 장기 기대값으로 보면 같습니다.</dd>
+              <dt>시장 충격 (Market Shock)</dt><dd>베어마켓·금융위기처럼 투자 자산이 급락하는 사건. 발생 횟수와 강도(-25% 등)를 입력하면 <code>매년 평균 손실 = (횟수 ÷ 구간) × 강도</code>로 환산해 투자 자산에서 추가 차감합니다.</dd>
+              <dt>기대 손실 (Expected Loss)</dt><dd>발생 확률과 손실 크기를 곱한 평균. 47년 중 6번 -25% 충격이면 매년 약 3.2%의 추가 손실.</dd>
             </dl>
           </details>
 
@@ -432,8 +525,49 @@
 
     bindInputs(root);
     updateReVisibility();
+    renderEventList();
     loadScenarioList();
     built = true;
+  }
+
+  function renderEventList() {
+    const wrap = document.getElementById("evList");
+    if (!wrap) return;
+    const events = state.events || [];
+    wrap.innerHTML = events.map((ev, idx) => {
+      const badge = ev.type === "one_time" ? "결정"
+                  : ev.type === "probabilistic" ? "확률"
+                  : "시장";
+      let body = "";
+      if (ev.type === "one_time") {
+        body = `
+          <label>시점 (와이프 나이)<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="atAge" value="${Number(ev.atAge) || 0}" /></label>
+          <label>비용 (현재가치, 만원)<input type="number" min="0" step="100" data-evidx="${idx}" data-evfield="amountToday" value="${Number(ev.amountToday) || 0}" /></label>`;
+      } else if (ev.type === "probabilistic") {
+        body = `
+          <label>구간 시작<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="startAge" value="${Number(ev.startAge) || 0}" /></label>
+          <label>구간 종료<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="endAge" value="${Number(ev.endAge) || 0}" /></label>
+          <label>발생 확률 (%)<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="probabilityPct" value="${Math.round((Number(ev.probability) || 0) * 100)}" /></label>
+          <label>발생 시 비용 (현재가치, 만원)<input type="number" min="0" step="100" data-evidx="${idx}" data-evfield="amountToday" value="${Number(ev.amountToday) || 0}" /></label>`;
+      } else if (ev.type === "market_shock") {
+        body = `
+          <label>구간 시작<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="startAge" value="${Number(ev.startAge) || 0}" /></label>
+          <label>구간 종료<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="endAge" value="${Number(ev.endAge) || 0}" /></label>
+          <label>발생 횟수 (구간 내)<input type="number" min="0" max="50" step="1" data-evidx="${idx}" data-evfield="expectedCount" value="${Number(ev.expectedCount) || 0}" /></label>
+          <label>강도 (자산 손실, %)<input type="number" min="0" max="100" step="1" data-evidx="${idx}" data-evfield="severityPct" value="${Math.round((Number(ev.severity) || 0) * 100)}" /></label>`;
+      }
+      return `
+        <div class="ev-row" data-evcat="${ev.category}">
+          <div class="ev-head">
+            <label class="ev-toggle">
+              <input type="checkbox" data-evidx="${idx}" data-evfield="enabled" ${ev.enabled ? "checked" : ""} />
+              <strong>${esc(ev.label)}</strong>
+              <span class="ev-badge ev-badge-${ev.type}">${badge}</span>
+            </label>
+          </div>
+          <div class="ev-body">${body}</div>
+        </div>`;
+    }).join("");
   }
 
   function updateReVisibility() {
@@ -518,6 +652,44 @@
     root.querySelector("#simSaveBtn")?.addEventListener("click", saveScenario);
     root.querySelector("#simResetBtn")?.addEventListener("click", resetState);
     root.querySelector("#simScenSelect")?.addEventListener("change", (e) => { if (e.target.value) applyScenario(e.target.value); });
+
+    // 라이프 이벤트 입력
+    root.addEventListener("input", (e) => {
+      const el = e.target;
+      const idx = el.dataset.evidx;
+      const field = el.dataset.evfield;
+      if (idx == null || !field) return;
+      const i = Number(idx);
+      if (!state.events[i]) return;
+      if (field === "enabled") return; // change에서 처리
+      if (field === "probabilityPct") {
+        state.events[i].probability = Math.max(0, Math.min(100, Number(el.value) || 0)) / 100;
+      } else if (field === "severityPct") {
+        state.events[i].severity = Math.max(0, Math.min(100, Number(el.value) || 0)) / 100;
+      } else {
+        state.events[i][field] = Number(el.value) || 0;
+      }
+      persistState();
+      scheduleRefresh();
+    });
+    root.addEventListener("change", (e) => {
+      const el = e.target;
+      const idx = el.dataset.evidx;
+      const field = el.dataset.evfield;
+      if (idx == null || field !== "enabled") return;
+      const i = Number(idx);
+      if (!state.events[i]) return;
+      state.events[i].enabled = el.checked;
+      persistState();
+      scheduleRefresh();
+    });
+    root.querySelector("#evResetBtn")?.addEventListener("click", () => {
+      if (!confirm("라이프 이벤트를 모두 기본값으로 되돌릴까요?")) return;
+      state.events = DEFAULT_EVENTS.map((e) => ({ ...e }));
+      persistState();
+      renderEventList();
+      refresh();
+    });
   }
 
   function syncStayOut() {
@@ -580,6 +752,7 @@
       card("현재자산 → 필요수익률", pct(n.requiredCagr), "추가 저축 0 가정", ""),
       card(mode === "buy_later" && r.buyAtYear != null && r.sellAtYear == null ? "부동산 매입" : "부동산 매도 순현금", sellTxt, "", ""),
       card("국민연금(75세·부부)", `월 ${won(penMonth)}`, `현재가치 월 ${won(todayMan(penMonth, r.T, infl))}`, ""),
+      card("라이프 이벤트 총지출 (~75세)", won(r.cumLifeEventsAt75), `현재가치 ${won(r.cumLifeEventsTodayAt75)}`, ""),
       card("입주까지", `${r.T}년 후`, `${BASE_YEAR + r.T}년 · 물가배수 ${r.fEntry.toFixed(2)}배`, ""),
     ].join("");
     document.getElementById("simCards").innerHTML = cards;
@@ -634,9 +807,17 @@
       }),
     });
 
-    // 2) 소득 & 누적저축 (이중축)
+    // 2) 소득 & 누적저축 & 누적 라이프 이벤트 (이중축)
     let cum = 0;
     const cumSav = slice.map((p) => { cum += p.savings; return eok(cum); });
+    // 누적 라이프 이벤트 (와이프 나이 t까지)
+    const cumLifeByT = {};
+    for (const p of r.lifeEventSeries) cumLifeByT[p.t] = p.cumNom;
+    let lastCumLife = 0;
+    const cumLifeArr = slice.map((p) => {
+      if (cumLifeByT[p.t] != null) lastCumLife = cumLifeByT[p.t];
+      return eok(lastCumLife);
+    });
     drawChart("income", "chartIncome", {
       type: "line",
       data: {
@@ -645,6 +826,7 @@
           lineDS("가구 소득", slice.map((p) => p.incomeW + p.incomeH), COL.line, "y", false),
           lineDS("국민연금", slice.map((p) => p.pension), COL.amber, "y", true),
           lineDS("누적 저축", cumSav, COL.inv, "y1", false, true),
+          lineDS("누적 라이프 이벤트", cumLifeArr, "#c43d45", "y1", true, false),
         ],
       },
       options: dualOpts((ctx) => `와이프 ${slice[ctx[0].dataIndex].ageW}세`),
@@ -797,6 +979,7 @@
       savings_rate: s.savingsRate, savings_alloc_cash: s.allocCash, in_residence_real_return: s.inResidenceReal,
       retire_age_wife: s.retireWife, retire_age_husband: s.retireHusband, pension_start_age: s.pensionStartAge,
       pension_auto: s.pensionAuto, pension_monthly_override: s.pensionMonthlyOverride, medical_buffer_today: s.bufferToday,
+      life_events: Array.isArray(s.events) ? s.events : [],
     };
   }
   function stateFromScenario(d) {
@@ -816,6 +999,7 @@
       savingsRate: num(d.savings_rate, 0.30), allocCash: num(d.savings_alloc_cash, 0.30), inResidenceReal: num(d.in_residence_real_return, 0.01),
       retireWife: num(d.retire_age_wife, 60), retireHusband: num(d.retire_age_husband, 60), pensionStartAge: num(d.pension_start_age, 65),
       pensionAuto: d.pension_auto == null ? true : !!d.pension_auto, pensionMonthlyOverride: d.pension_monthly_override, bufferToday: num(d.medical_buffer_today, 20000),
+      events: Array.isArray(d.life_events) && d.life_events.length ? d.life_events : DEFAULT_EVENTS.map((e) => ({ ...e })),
     };
   }
 
