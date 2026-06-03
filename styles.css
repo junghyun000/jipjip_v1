@@ -1265,6 +1265,96 @@ tbody tr.is-selected {
 
 .v2-root { display: flex; flex-direction: column; gap: 18px; max-width: 1080px; margin: 0 auto; }
 
+/* ============================================================ */
+/* v3 — 프리셋 시나리오 칩                                       */
+/* ============================================================ */
+.v3-preset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.v3-preset-row h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #06362f;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.v3-preset-row h3 span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.v3-preset-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.v3-preset-chips::-webkit-scrollbar { height: 6px; }
+.v3-preset-chips::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.v3-chip {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 96px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.v3-chip:hover {
+  border-color: var(--accent-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 143, 114, 0.18);
+}
+.v3-chip.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-dark);
+  box-shadow: 0 4px 12px rgba(0, 143, 114, 0.22);
+}
+.v3-chip-emoji { font-size: 24px; line-height: 1; }
+.v3-chip-label { font-size: 13px; color: #06362f; }
+.v3-chip-check {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 11px;
+  color: var(--accent-dark);
+  font-weight: 900;
+}
+.v3-chip-custom {
+  border-style: dashed;
+  color: var(--muted);
+  cursor: default;
+}
+.v3-chip-custom:hover { transform: none; box-shadow: none; border-color: var(--line); }
+.v3-chip-custom.is-active {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: #fff7e8;
+}
+
+@media (max-width: 720px) {
+  .v3-chip { min-width: 84px; padding: 8px 10px; }
+  .v3-chip-emoji { font-size: 20px; }
+}
+
+
 /* HERO ------------------------------------------------------- */
 .v2-hero {
   position: sticky;

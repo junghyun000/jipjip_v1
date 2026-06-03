@@ -41,6 +41,125 @@
   };
   const OUTLOOK_LABEL = { conservative: "보수", neutral: "중립", aggressive: "공격", custom: "커스텀" };
 
+  // 프리셋 시나리오 (v3) — 부록 A 가정값 표 기반.
+  // 베이스(사용자 본인 정보)는 유지하고 시나리오 변수만 일괄 적용.
+  // 자녀 양육비: 통계청 2022 자녀양육비 + 사교육비 통계 종합 추정.
+  function ev(id, type, opts) { return { id, ...opts, type, enabled: true }; }
+  function defLE(overrides = {}) {
+    const base = DEFAULT_EVENTS.map((e) => ({ ...e }));
+    for (const [id, patch] of Object.entries(overrides)) {
+      const i = base.findIndex((e) => e.id === id);
+      if (i >= 0) base[i] = { ...base[i], ...patch };
+    }
+    return base;
+  }
+  const PRESETS = [
+    {
+      id: "optimistic", emoji: "🌟", label: "낙관",
+      description: "시장 우호적 + 본인 커리어·건강 평균 이상",
+      values: {
+        inflation: 0.025, investReturn: 0.07, cashReturn: 0.03, reReturn: 0.035,
+        incomeGrowth: 0.05, savingsRate: 0.38, allocCash: 0.20, medicalPremium: 0.010,
+        realEstateMode: "buy_later", realEstateCurrent: 0, realEstateBuyYear: 4, realEstateBuyPriceToday: 65000,
+        sellMode: "at_entry",
+      },
+      events: defLE({
+        fwm: { atAge: 60 }, fwf: { atAge: 62 }, fhm: { atAge: 58 }, fhf: { atAge: 60 },
+        care: { probability: 0.45, amountToday: 5000 },
+        illw: { probability: 0.15, amountToday: 3000 },
+        illh: { probability: 0.20, amountToday: 3000 },
+        shock: { expectedCount: 4, severity: 0.20 },
+      }),
+    },
+    {
+      id: "neutral", emoji: "⚖️", label: "중립",
+      description: "평균적 가정 (v2 기본값)",
+      values: {
+        inflation: 0.03, investReturn: 0.06, cashReturn: 0.025, reReturn: 0.03,
+        incomeGrowth: 0.04, savingsRate: 0.30, allocCash: 0.30, medicalPremium: 0.015,
+        realEstateMode: "buy_later", realEstateCurrent: 0, realEstateBuyYear: 5, realEstateBuyPriceToday: 70000,
+        sellMode: "at_entry",
+      },
+      events: defLE(),
+    },
+    {
+      id: "pessimistic", emoji: "🌧️", label: "비관",
+      description: "저성장 + 커리어 정체 + 부모 건강 악화",
+      values: {
+        inflation: 0.04, investReturn: 0.035, cashReturn: 0.015, reReturn: 0.015,
+        incomeGrowth: 0.02, savingsRate: 0.22, allocCash: 0.40, medicalPremium: 0.025,
+        realEstateMode: "buy_later", realEstateCurrent: 0, realEstateBuyYear: 7, realEstateBuyPriceToday: 80000,
+        sellMode: "at_entry",
+      },
+      events: defLE({
+        fwm: { atAge: 56, amountToday: 2000 }, fwf: { atAge: 58, amountToday: 2000 },
+        fhm: { atAge: 54, amountToday: 2000 }, fhf: { atAge: 56, amountToday: 2000 },
+        care: { probability: 0.80, amountToday: 8000 },
+        illw: { probability: 0.30, amountToday: 6000 },
+        illh: { probability: 0.35, amountToday: 6500 },
+        shock: { expectedCount: 8, severity: 0.30 },
+      }),
+    },
+    {
+      id: "family", emoji: "👶", label: "자녀 출생",
+      description: "와이프 30세에 자녀 1명 (통계청 양육비 반영)",
+      values: {
+        inflation: 0.03, investReturn: 0.06, cashReturn: 0.025, reReturn: 0.03,
+        incomeGrowth: 0.04, savingsRate: 0.25, allocCash: 0.30, medicalPremium: 0.015,
+        realEstateMode: "buy_later", realEstateCurrent: 0, realEstateBuyYear: 5, realEstateBuyPriceToday: 70000,
+        sellMode: "at_entry",
+      },
+      events: [
+        ...defLE(),
+        // 자녀 양육비 (확률 100%로 평활 처리 — 매년 분산 차감)
+        ev("child_infant", "probabilistic",   { label: "자녀 영유아 (0-5세)",  category: "family", startAge: 30, endAge: 35, probability: 1.0, amountToday: 6800 }),
+        ev("child_elem",   "probabilistic",   { label: "자녀 초등 (6-11세)",   category: "family", startAge: 36, endAge: 41, probability: 1.0, amountToday: 5800 }),
+        ev("child_middle", "probabilistic",   { label: "자녀 중·고등 (12-17세)", category: "family", startAge: 42, endAge: 47, probability: 1.0, amountToday: 9500 }),
+        ev("child_univ",   "probabilistic",   { label: "자녀 대학 (18-23세)",  category: "family", startAge: 48, endAge: 53, probability: 1.0, amountToday: 15000 }),
+        ev("child_wedding","one_time",        { label: "자녀 결혼 자금",       category: "family", atAge: 58, amountToday: 5000 }),
+      ],
+    },
+    {
+      id: "healthy", emoji: "💪", label: "모두 건강",
+      description: "본인·배우자·부모 모두 건강, 의료비 최소",
+      values: {
+        inflation: 0.03, investReturn: 0.06, cashReturn: 0.025, reReturn: 0.03,
+        incomeGrowth: 0.04, savingsRate: 0.30, allocCash: 0.30, medicalPremium: 0.005,
+        realEstateMode: "buy_later", realEstateCurrent: 0, realEstateBuyYear: 5, realEstateBuyPriceToday: 70000,
+        sellMode: "at_entry",
+      },
+      events: defLE({
+        fwm: { atAge: 66 }, fwf: { atAge: 68 }, fhm: { atAge: 64 }, fhf: { atAge: 66 },
+        care: { probability: 0.35, amountToday: 4000 },
+        illw: { probability: 0.10, amountToday: 3000 },
+        illh: { probability: 0.13, amountToday: 3000 },
+        // shock 그대로 (시장은 별개)
+      }),
+    },
+    {
+      id: "realestate", emoji: "🏠", label: "부동산 보유",
+      description: "현재 5억 부동산 보유, 입주 시점 매도",
+      values: {
+        inflation: 0.03, investReturn: 0.06, cashReturn: 0.025, reReturn: 0.035,
+        incomeGrowth: 0.04, savingsRate: 0.30, allocCash: 0.30, medicalPremium: 0.015,
+        realEstateMode: "owned", realEstateCurrent: 50000, realEstateBuyYear: 5, realEstateBuyPriceToday: 70000,
+        sellMode: "at_entry", reSellCost: 0.04,
+      },
+      events: defLE(),
+    },
+  ];
+
+  const PRESET_LE_KEYS = ["fwm", "fwf", "fhm", "fhf", "care", "illw", "illh", "shock"];
+  const PRESET_LE_FIELDS = {
+    one_time: ["atAge", "amountToday"],
+    probabilistic: ["startAge", "endAge", "probability", "amountToday"],
+    market_shock: ["startAge", "endAge", "expectedCount", "severity"],
+  };
+  const PRESET_VALUE_KEYS = ["inflation", "investReturn", "cashReturn", "reReturn",
+    "incomeGrowth", "savingsRate", "allocCash", "medicalPremium",
+    "realEstateMode", "realEstateCurrent", "realEstateBuyYear", "realEstateBuyPriceToday",
+    "sellMode"];
+
   const DEFAULTS = {
     wifeAge: 28, husbandAge: 33, entryAge: 75, stayYears: 10,
     cashCurrent: 10000, investmentCurrent: 20000,
@@ -271,6 +390,46 @@
     };
   }
 
+  /* ============================ 프리셋 추론/적용 ============================ */
+  function applyPreset(id) {
+    const p = PRESETS.find((x) => x.id === id);
+    if (!p) { toast("프리셋을 찾을 수 없습니다"); return; }
+    Object.assign(state, p.values);
+    state.events = p.events.map((e) => ({ ...e }));
+    state.lifeEventsEnabled = true;
+    persistState();
+    buildUI();
+    toast(`${p.emoji} ${p.label} 시나리오 적용`);
+  }
+
+  function inferActivePreset(s) {
+    for (const p of PRESETS) {
+      if (!PRESET_VALUE_KEYS.every((k) => valueMatch(s[k], p.values[k]))) continue;
+      if (!eventsMatch(s.events, p.events)) continue;
+      return p.id;
+    }
+    return null;
+  }
+  function valueMatch(a, b) {
+    if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) < 1e-6;
+    return a === b;
+  }
+  function eventsMatch(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    const byId = (arr) => Object.fromEntries(arr.map((e) => [e.id, e]));
+    const ma = byId(a), mb = byId(b);
+    for (const id of Object.keys(mb)) {
+      const ea = ma[id], eb = mb[id];
+      if (!ea) return false;
+      if (ea.type !== eb.type || !ea.enabled !== !eb.enabled) return false;
+      for (const f of PRESET_LE_FIELDS[eb.type] || []) {
+        if (!valueMatch(Number(ea[f]) || 0, Number(eb[f]) || 0)) return false;
+      }
+    }
+    return true;
+  }
+
   /* ============================ 시장 가정 추론/적용 ============================ */
   function inferOutlook(s) {
     for (const [name, vals] of Object.entries(OUTLOOKS)) {
@@ -314,8 +473,26 @@
       : `${state.realEstateBuyYear}년 뒤 매입 (${won(state.realEstateBuyPriceToday)})`;
     const tier = tierById(state.tierId);
 
+    const activePreset = inferActivePreset(state);
     root.innerHTML = `
       <div class="v2-root">
+
+        <!-- PRESET CHIPS (v3) -->
+        <section class="v3-preset-row" aria-label="빠른 시나리오">
+          <h3>📋 빠른 시나리오 <span>1-클릭으로 모든 가정 일괄 적용</span></h3>
+          <div class="v3-preset-chips" role="tablist">
+            ${PRESETS.map((p) => `
+              <button type="button" class="v3-chip ${activePreset === p.id ? "is-active" : ""}" data-preset="${p.id}" role="tab" aria-selected="${activePreset === p.id}" title="${esc(p.description)}">
+                <span class="v3-chip-emoji">${p.emoji}</span>
+                <span class="v3-chip-label">${esc(p.label)}</span>
+                ${activePreset === p.id ? '<span class="v3-chip-check">✓</span>' : ""}
+              </button>`).join("")}
+            <button type="button" class="v3-chip v3-chip-custom ${activePreset == null ? "is-active" : ""}" disabled aria-disabled="true" title="입력값을 직접 수정한 상태">
+              <span class="v3-chip-emoji">🎨</span>
+              <span class="v3-chip-label">커스텀</span>
+            </button>
+          </div>
+        </section>
 
         <!-- HERO -->
         <section class="v2-hero" id="v2Hero">
@@ -788,6 +965,8 @@
       if (tier) { state.tierId = tier.dataset.vtier; state.depositOverride = null; state.monthlyOverride = null; persistState(); buildUI(); return; }
       const ol = e.target.closest("[data-voutlook]");
       if (ol) { applyOutlook(ol.dataset.voutlook); return; }
+      const pre = e.target.closest("[data-preset]");
+      if (pre) { applyPreset(pre.dataset.preset); return; }
     });
 
     // 어드밴스드 토글 상태 저장
@@ -897,6 +1076,22 @@
     // 라이프 이벤트 라벨 갱신
     const bar = document.querySelector(".v2-life-bar strong");
     if (bar) bar.textContent = `🪦 라이프 이벤트 ${state.lifeEventsEnabled ? "적용" : "미적용"}`;
+    // 활성 프리셋 칩 갱신 (사용자 카드 수정 시 자동 해제 → 커스텀)
+    syncPresetChips();
+  }
+
+  function syncPresetChips() {
+    const active = inferActivePreset(state);
+    document.querySelectorAll("[data-preset]").forEach((btn) => {
+      const a = btn.dataset.preset === active;
+      btn.classList.toggle("is-active", a);
+      btn.setAttribute("aria-selected", a ? "true" : "false");
+      let chk = btn.querySelector(".v3-chip-check");
+      if (a && !chk) { chk = document.createElement("span"); chk.className = "v3-chip-check"; chk.textContent = "✓"; btn.appendChild(chk); }
+      else if (!a && chk) chk.remove();
+    });
+    const custom = document.querySelector(".v3-chip-custom");
+    if (custom) custom.classList.toggle("is-active", active == null);
   }
 
   /* ============================ 시나리오 (v1 동일) ============================ */
